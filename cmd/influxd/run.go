@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/influxdb/influxdb"
 	"github.com/influxdb/influxdb/collectd"
@@ -52,7 +53,7 @@ func Run(config *Config, join, version string, logWriter *os.File) *influxdb.Ser
 	}
 
 	// Open server, initialize or join as necessary.
-	s := openServer(config.DataDir(), config.DataURL(), b, initializing, configExists, joinURLs, logWriter)
+	s := openServer(config, b, initializing, configExists, joinURLs, logWriter)
 	s.SetAuthenticationEnabled(config.Authentication.Enabled)
 
 	// Start the server handler. Attach to broker if listening on the same port.
@@ -208,16 +209,21 @@ func joinBroker(b *influxdb.Broker, joinURLs []*url.URL) {
 }
 
 // creates and initializes a server.
-func openServer(path string, u *url.URL, b *influxdb.Broker, initializing, configExists bool, joinURLs []*url.URL, w io.Writer) *influxdb.Server {
+func openServer(config *Config, b *influxdb.Broker, initializing, configExists bool, joinURLs []*url.URL, w io.Writer) *influxdb.Server {
 	// Ignore if there's no existing server and we're not initializing or joining.
-	if !fileExists(path) && !initializing && len(joinURLs) == 0 {
+	if !fileExists(config.Data.Dir) && !initializing && len(joinURLs) == 0 {
 		return nil
 	}
 
 	// Create and open the server.
 	s := influxdb.NewServer()
 	s.SetLogOutput(w)
-	if err := s.Open(path); err != nil {
+	s.RecomputePreviousN = config.ContinuousQuery.RecomputePreviousN
+	s.RecomputeNoOlderThan = time.Duration(config.ContinuousQuery.RecomputeNoOlderThan)
+	s.ComputeRunsPerInterval = config.ContinuousQuery.ComputeRunsPerInterval
+	s.ComputeNoMoreThan = time.Duration(config.ContinuousQuery.ComputeNoMoreThan)
+
+	if err := s.Open(config.Data.Dir); err != nil {
 		log.Fatalf("failed to open data server: %v", err.Error())
 	}
 
@@ -226,7 +232,7 @@ func openServer(path string, u *url.URL, b *influxdb.Broker, initializing, confi
 		if len(joinURLs) == 0 {
 			initializeServer(s, b, w)
 		} else {
-			joinServer(s, u, joinURLs)
+			joinServer(s, config.DataURL(), joinURLs)
 			openServerClient(s, joinURLs, w)
 		}
 	} else if !configExists {
