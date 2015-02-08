@@ -149,7 +149,6 @@ func NewConfig() *Config {
 	c.Data.Dir = filepath.Join(u.HomeDir, ".influxdb/data")
 	c.Data.Port = DefaultDataPort
 	c.Data.WriteBufferSize = 1000
-	c.Data.WriteBufferSize = 1000
 	c.ContinuousQuery.RecomputePreviousN = 2
 	c.ContinuousQuery.RecomputeNoOlderThan = Duration(10 * time.Minute)
 	c.ContinuousQuery.ComputeRunsPerInterval = 10

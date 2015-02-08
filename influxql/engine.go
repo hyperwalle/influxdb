@@ -304,7 +304,7 @@ loop:
 	for _, row := range rows {
 		for _, values := range row.Values {
 			t := time.Unix(0, values[0].(int64))
-			values[0] = t.UTC().Format(time.RFC3339Nano)
+			values[0] = t.UTC()
 		}
 		a = append(a, row)
 	}
@@ -641,6 +641,7 @@ func MapMean(itr Iterator, e *Emitter, tmin int64) {
 	out := &meanMapOutput{}
 
 	for k, v := itr.Next(); k != 0; k, v = itr.Next() {
+		warn("> ", k, v, itr.Tags())
 		out.Count++
 		out.Sum += v.(float64)
 	}
