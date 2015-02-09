@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/influxdb/influxdb"
+	"github.com/influxdb/influxdb/client"
 	"github.com/influxdb/influxdb/collectd"
 	"github.com/influxdb/influxdb/graphite"
 	"github.com/influxdb/influxdb/httpd"
@@ -111,7 +113,48 @@ func Run(config *Config, join, version string, logWriter *os.File) *influxdb.Ser
 			}
 		}
 	}
+
+	startReportingLoop()
+
 	return s
+}
+
+func startReportingLoop() chan struct{} {
+	reportStats()
+
+	ticker := time.NewTicker(24 * time.Hour)
+	for {
+		select {
+		case <-ticker.C:
+			reportStats()
+		}
+	}
+}
+
+func reportStats() {
+	c, err := client.NewClient(
+		client.Config{
+			URL:      url.URL{Scheme: "http", Host: "localhost:8086"},
+			Username: "reporter",
+			Password: "influxdb",
+		})
+
+	if err != nil {
+		log.Printf("Couldn't create client for reporting: %s", err)
+	} else {
+		write := client.Write{}
+
+		/* series := &influxdb.Series{ */
+		/* Name:    "reports", */
+		/* Columns: []string{"os", "arch", "id", "version"}, */
+		/* Points: [][]interface{}{ */
+		/* {runtime.GOOS, runtime.GOARCH, self.RaftServer.GetRaftName(), version}, */
+		/* }, */
+		/* } */
+
+		log.Printf("Reporting stats: %#v", write)
+		c.Write(write)
+	}
 }
 
 // write the current process id to a file specified by path.
